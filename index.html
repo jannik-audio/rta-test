@@ -118,7 +118,7 @@ let N=12,wt='A',tc='F',hold=true,cal=100,calibrated=false;
 try{const c=localStorage.getItem('cal');if(c){cal=+c;calibrated=true}}catch(e){}
 try{const ad=localStorage.getItem('alarmDb');if(ad)$('alarmDb').value=ad}catch(e){}
 try{const pr=localStorage.getItem('pkRate');if(pr!==null){$('pkRate').value=pr;pkRate=Math.max(0,+pr||0)}}catch(e){}
-let bands=[],lev=[],pkv=[],wA,wC,sm=1e-12,eSum=0,eT=0,mx=-999,pkm=-999,x0=[],x1=[],pkRate=20,wLo=.34,wMid=.33,wHi=.33;
+let bands=[],lev=[],pkv=[],wA,wC,sm=1e-12,eSum=0,eT=0,mx=-999,pkm=-999,x0=[],x1=[],pkRate=20,wLo=.34,wMid=.33,wHi=.33,curMs=0;
 const FMIN=20,FMAX=20000,DMIN=-100,DMAX=0,LR=Math.log(FMAX/FMIN),CORR=10*Math.log10(2/0.3046);
 const dpr=Math.min(window.devicePixelRatio||1,2);
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -130,7 +130,10 @@ let spKey='',rtaKey='',wfKey='';
 function layoutWave(){
   const p=wc.parentElement,w=p.clientWidth,h=p.clientHeight;if(!w||!h)return;
   const key=w+'x'+h;if(key===wfKey)return;wfKey=key;
-  wc.width=Math.round(w*dpr);wc.height=Math.round(h*dpr);
+  const W=Math.round(w*dpr),H=Math.round(h*dpr);
+  const old=document.createElement('canvas');old.width=wc.width;old.height=wc.height;old.getContext('2d').drawImage(wc,0,0);
+  wc.width=W;wc.height=H;
+  if(old.width===W&&old.height>0)wx.drawImage(old,0,0);
 }
 function layoutRta(){
   const p=rc.parentElement,w=p.clientWidth,h=p.clientHeight;if(!w||!h)return;
@@ -214,7 +217,7 @@ function resetSpl(){eSum=0;eT=0;mx=-999;pkm=-999}
 function loop(t){
   if(!running)return;const dt=Math.min((t-last)/1000,.1);last=t;
   an.getFloatFrequencyData(fb);an.getFloatTimeDomainData(tb);
-  let ms=0,pk=0;for(let i=tb.length-2048;i<tb.length;i++){const v=tb[i];ms+=v*v;const a=Math.abs(v);if(a>pk)pk=a}ms/=2048;
+  let ms=0,pk=0;for(let i=tb.length-2048;i<tb.length;i++){const v=tb[i];ms+=v*v;const a=Math.abs(v);if(a>pk)pk=a}ms/=2048;curMs=ms;
   const W=wt==='A'?wA:wt==='C'?wC:null;let s=0,sw=0,loE=0,miE=0,hiE=0;
   for(let i=1;i<fb.length;i++){
     const p=Math.pow(10,fb[i]/10);s+=p;if(W)sw+=p*W[i];
@@ -242,22 +245,20 @@ function loop(t){
     lev[k]=Math.max(v,lev[k]-30*dt);
     if(lev[k]>=pkv[k])pkv[k]=lev[k];else if(pkRate>0)pkv[k]=Math.max(lev[k],pkv[k]-pkRate*dt);
   });
-  if(vis.wave)drawWave();
+  if(vis.wave)drawWave(dt);
   if(vis.rta)drawRta();
   if(vis.sp&&frame++%2===0)drawSpec();
   requestAnimationFrame(loop);
 }
-function drawWave(){
+function drawWave(dt){
   const W=wc.width,H=wc.height;if(!W||!H)return;
-  wx.clearRect(0,0,W,H);
+  const shift=Math.max(1,Math.round((dt||.016)*90*dpr));
+  if(shift<W){wx.drawImage(wc,shift,0,W-shift,H,0,0,W-shift,H);wx.clearRect(W-shift,0,shift,H)}
+  else wx.clearRect(0,0,W,H);
+  const amp=Math.min(1,Math.sqrt(curMs)*2.4),half=Math.max(1.2*dpr,amp*H*0.48);
   const r=Math.round(255*wLo+240*wMid+60*wHi),g2=Math.round(60*wLo+200*wMid+200*wHi),b=Math.round(60*wLo+50*wMid+120*wHi);
-  wx.strokeStyle='rgb('+r+','+g2+','+b+')';wx.lineWidth=2*dpr;wx.beginPath();
-  const n=tb.length,step=Math.max(1,Math.floor(n/W));
-  for(let x=0;x<W;x++){
-    const v=tb[Math.min(n-1,x*step)],y=H/2-v*H*0.45;
-    if(x===0)wx.moveTo(x,y);else wx.lineTo(x,y);
-  }
-  wx.stroke();
+  wx.fillStyle='rgb('+r+','+g2+','+b+')';
+  wx.fillRect(Math.max(0,W-shift),H/2-half,shift,half*2);
 }
 function drawRta(){
   const W=rc.width,H=rc.height,m={l:ML*dpr,b:MB*dpr,t:MT*dpr},pw=W-m.l-4*dpr,ph=H-m.b-m.t;
