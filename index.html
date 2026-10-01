@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RTA">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0f151b">
+<link rel="manifest" href="manifest.json">
+<title>RTA Analyzer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=Barlow:wght@400;500&display=swap">
+<style>
+:root{--bg:#0f151b;--panel:#161f28;--line:#26333f;--ink:#e7eef4;--dim:#8196a6;--lo:#2bb3a3;--mid:#f0b429;--hi:#e5484d;--pk:#e7eef4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef2f5;--panel:#fff;--line:#cfd8df;--ink:#12202b;--dim:#5b7080;--pk:#12202b}}
+:root[data-theme="light"]{--bg:#eef2f5;--panel:#fff;--line:#cfd8df;--ink:#12202b;--dim:#5b7080;--pk:#12202b}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.4 Barlow,system-ui,sans-serif;padding:14px max(14px,env(safe-area-inset-right,0px)) 14px max(14px,env(safe-area-inset-left,0px));touch-action:manipulation}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+button,select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 12px;font:inherit;font-size:16px;min-height:44px;cursor:pointer;touch-action:manipulation}
+button:focus-visible,select:focus-visible{outline:2px solid var(--mid);outline-offset:1px}
+button.go{background:var(--lo);border-color:var(--lo);color:#04211d;font-weight:500}
+button.on{border-color:var(--mid);color:var(--mid)}
+.grp{display:flex;gap:0}.grp button{border-radius:0;margin-left:-1px}.grp button:first-child{border-radius:6px 0 0 6px;margin:0}.grp button:last-child{border-radius:0 6px 6px 0}
+.main{display:grid;grid-template-columns:230px 1fr;gap:12px}
+html,body{max-width:100%;overflow-x:hidden}.main>*{min-width:0}select{max-width:100%}
+.hide{display:none!important}
+@media(max-width:760px){.big{font-size:64px}.sub{grid-template-columns:repeat(4,1fr);gap:6px}.sub b{font-size:22px}body{padding-top:8px}}
+.spl{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px}
+.big{font:600 84px/1 'Barlow Condensed',sans-serif;letter-spacing:-1px}
+.big.hit{color:var(--hi)}
+.unit{color:var(--dim);font-size:14px}
+.sub{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.sub b{display:block;font:600 26px/1.1 'Barlow Condensed',sans-serif}.sub span{color:var(--dim);font-size:13px}
+.plot{background:var(--panel);border:1px solid var(--line);border-radius:8px;position:relative;overflow:hidden}
+canvas{display:block;width:100%}
+#msg{color:var(--dim);margin:10px 2px;font-size:13px;min-height:1.4em}
+h2{font:500 14px Barlow,sans-serif;color:var(--dim);margin:14px 2px 6px}
+input[type=number]{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:16px;min-height:44px;width:76px}
+input[type=range]{accent-color:var(--mid);width:100px;vertical-align:middle}
+details.tools{position:relative}
+details.tools>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:8px 12px;font:inherit;font-size:15px;min-height:44px}
+details.tools>summary::-webkit-details-marker{display:none}
+details.tools>summary::after{content:'▾';font-size:11px;color:var(--dim)}
+details.tools[open]>summary{border-color:var(--mid);color:var(--mid)}
+details.tools:focus-within>summary{outline:2px solid var(--mid);outline-offset:-2px}
+details.tools .inner{position:fixed;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;z-index:30;min-width:230px;max-width:85vw;max-height:80vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+details.tools .inner .bar{margin:0 0 10px!important}
+details.tools .inner .bar:last-child{margin-bottom:0!important}
+.rta-controls{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:5}
+.rta-controls button{padding:6px 10px;min-height:34px;font-size:13px;background:rgba(15,21,27,.85);border-color:rgba(255,255,255,.25)}
+.sub2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.sub2 b{display:block;font:600 22px/1.1 'Barlow Condensed',sans-serif}.sub2 span{color:var(--dim);font-size:13px}
+
+:root{--pl:max(14px,env(safe-area-inset-left,0px));--pr:max(14px,env(safe-area-inset-right,0px))}
+body{padding-left:var(--pl);padding-right:var(--pr);display:flex;flex-direction:column;min-height:100vh;min-height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+.main{flex:1 0 auto}
+.plot{min-height:200px}
+.plot canvas{position:absolute;left:0;top:0;width:100%;height:100%}
+.spl{align-self:start}
+@media(max-width:760px){.plot{min-height:240px}}
+@media(max-height:520px){.big{font-size:52px}.sub{margin-top:8px;gap:4px}.sub b{font-size:20px}.sub span{font-size:12px}.spl{padding:8px 10px}.spl .bar{margin:8px 0 0!important}.bar{gap:6px;margin-bottom:8px}button,select{min-height:34px;padding:4px 10px;font-size:14px}.plot{min-height:150px}body{padding-top:6px;padding-bottom:6px}}
+</style>
+</head>
+<body>
+<div class="bar">
+  <button class="go" id="go">Messung starten</button>
+  <select id="dev" aria-label="Eingang"><option value="">Standard-Eingang</option></select>
+  <div class="grp" id="res"><button data-v="6">1/6</button><button data-v="12" class="on">1/12</button><button data-v="24">1/24</button></div>
+  <div class="grp" id="wt"><button data-v="A" class="on">A</button><button data-v="C">C</button><button data-v="Z">Z</button></div>
+  <div class="grp" id="tc"><button data-v="F" class="on">Fast</button><button data-v="S">Slow</button></div>
+  <button id="noise">Rosa Rauschen</button>
+  <details class="tools"><summary>Werkzeuge</summary><div class="inner">
+    <div class="bar"><button id="rst">Zurücksetzen</button><button id="cal">Auf 94 dB</button></div>
+    <div class="bar"><button id="exp">Exportieren</button></div>
+    <h2 style="margin-top:0">Peak-Hold Abklingzeit</h2>
+    <div class="bar" style="flex-wrap:wrap"><input type="number" id="pkRate" value="20" min="0" step="1" aria-label="Abklingzeit in dB pro Sekunde" oninput="pkRate=Math.max(0,+this.value||0);try{localStorage.setItem('pkRate',this.value)}catch(e){}"><span class="unit">dB/s (0 = dauerhaft halten)</span></div>
+    <h2>Alarmschwelle</h2>
+    <div class="bar" style="flex-wrap:wrap"><input type="number" id="alarmDb" value="100" aria-label="Alarmschwelle in dB" oninput="try{localStorage.setItem('alarmDb',this.value)}catch(e){}"><span class="unit">dB (LAF)</span></div>
+    <h2>Leq über Zeitraum</h2>
+    <div class="bar" style="flex-wrap:wrap">
+      <select id="pDur" aria-label="Zeitraum"><option value="900">15 min</option><option value="1800">30 min</option><option value="3600">60 min</option><option value="0">Unbegrenzt</option></select>
+      <button id="pStart">Start</button><button id="pReset">Zurücksetzen</button>
+    </div>
+    <div class="sub2"><div><b id="pLeq">--</b><span>Leq (Zeitraum)</span></div><div><b id="pTime">00:00</b><span>Dauer</span></div></div>
+  </div></details>
+  <div class="grp" id="views" aria-label="Bereiche ein- und ausblenden"><button data-v="spl" class="on">SPL</button><button data-v="rta" class="on">RTA</button><button data-v="sp" class="on">Spektrogramm</button><button data-v="wave" class="on">Waveform</button></div>
+</div>
+<div class="main" id="main">
+  <div class="spl" id="secSpl">
+    <div class="unit" id="lbl">LAF</div>
+    <div class="big" id="spl">--</div>
+    <div class="unit" id="cs">dB SPL, nicht kalibriert</div>
+    <div class="sub">
+      <div><b id="leq">--</b><span>Leq</span></div>
+      <div><b id="max">--</b><span>Max</span></div>
+      <div><b id="peak">--</b><span>Peak</span></div>
+      <div><b id="fs">--</b><span>dBFS</span></div>
+    </div>
+  </div>
+  <div class="plot" id="secWave"><canvas id="wf"></canvas></div>
+  <div class="plot" id="secRta"><canvas id="rta"></canvas>
+    <div class="rta-controls"><button id="hold" class="on">Peak-Hold</button><button id="pkReset">Peak-Reset</button><button id="snap">Snapshot</button></div>
+  </div>
+  <div class="plot" id="secSp"><canvas id="sp"></canvas><canvas id="gr" style="position:absolute;left:0;top:0;pointer-events:none"></canvas></div>
+</div>
+<div id="msg">Mikrofon oder Audio-Interface wählen und die Messung starten. Für echte Pegel: 94-dB-Kalibrator (1 kHz) ans Mikrofon halten und „Auf 94 dB“ drücken.</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const rc=$('rta'),rx=rc.getContext('2d'),sc=$('sp'),sx=sc.getContext('2d',{willReadFrequently:true}),gc=$('gr'),gx=gc.getContext('2d'),wc=$('wf'),wx=wc.getContext('2d');
+let ctx,an,stream,fb,tb,binHz,running=false,last=0,frame=0,wl;
+let snapLev=null,nCtx,nNode,nGain,noiseOn=false;
+let pEsum=0,pEt=0,pRunning=false,pDur=900;
+let N=12,wt='A',tc='F',hold=true,cal=100,calibrated=false;
+try{const c=localStorage.getItem('cal');if(c){cal=+c;calibrated=true}}catch(e){}
+try{const ad=localStorage.getItem('alarmDb');if(ad)$('alarmDb').value=ad}catch(e){}
+try{const pr=localStorage.getItem('pkRate');if(pr!==null){$('pkRate').value=pr;pkRate=Math.max(0,+pr||0)}}catch(e){}
+let bands=[],lev=[],pkv=[],wA,wC,sm=1e-12,eSum=0,eT=0,mx=-999,pkm=-999,x0=[],x1=[],pkRate=20,wLo=.34,wMid=.33,wHi=.33;
+const FMIN=20,FMAX=20000,DMIN=-100,DMAX=0,LR=Math.log(FMAX/FMIN),CORR=10*Math.log10(2/0.3046);
+const dpr=Math.min(window.devicePixelRatio||1,2);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const px=(f,W)=>Math.log(f/FMIN)/LR*W;
+const lut=(()=>{const c=document.createElement('canvas');c.width=256;c.height=1;const g=c.getContext('2d'),gr=g.createLinearGradient(0,0,256,0);
+[[0,'#05070f'],[.25,'#2b1a6b'],[.5,'#b0306a'],[.75,'#f59e0b'],[1,'#fff6d6']].forEach(s=>gr.addColorStop(s[0],s[1]));g.fillStyle=gr;g.fillRect(0,0,256,1);return g.getImageData(0,0,256,1).data})();
+
+let spKey='',rtaKey='',wfKey='';
+function layoutWave(){
+  const p=wc.parentElement,w=p.clientWidth,h=p.clientHeight;if(!w||!h)return;
+  const key=w+'x'+h;if(key===wfKey)return;wfKey=key;
+  wc.width=Math.round(w*dpr);wc.height=Math.round(h*dpr);
+}
+function layoutRta(){
+  const p=rc.parentElement,w=p.clientWidth,h=p.clientHeight;if(!w||!h)return;
+  const key=w+'x'+h;if(key===rtaKey)return;rtaKey=key;
+  rc.width=Math.round(w*dpr);rc.height=Math.round(h*dpr);
+}
+function layoutSpec(){
+  const p=sc.parentElement,w=p.clientWidth,h=p.clientHeight;if(!w||!h)return;
+  const key=w+'x'+h;if(key===spKey)return;spKey=key;
+  const W=Math.round(w*dpr),H=Math.round(h*dpr);
+  const old=document.createElement('canvas');old.width=sc.width;old.height=sc.height;old.getContext('2d').drawImage(sc,0,0);
+  sc.width=W;sc.height=H;gc.width=W;gc.height=H;
+  sx.fillStyle='#05070f';sx.fillRect(0,0,W,H);if(old.width===W)sx.drawImage(old,0,0);
+  drawGrid();mapX();
+}
+function layout(){layoutRta();layoutSpec();layoutWave()}
+function insets(){
+  const st=document.documentElement.style,land=innerWidth>innerHeight;
+  let a=(screen.orientation&&typeof screen.orientation.angle==='number')?screen.orientation.angle:(typeof window.orientation==='number'?window.orientation:0);
+  a=((a%360)+360)%360;
+  let L='max(14px,env(safe-area-inset-left,0px))',R='max(14px,env(safe-area-inset-right,0px))';
+  if(land&&a===90)R='14px';
+  if(land&&a===270)L='14px';
+  st.setProperty('--pl',L);st.setProperty('--pr',R);
+}
+const ML=38,MB=20,MT=8,SML=0;
+function ticks(){return[20,50,100,200,500,1000,2000,5000,10000,20000]}
+const tl=f=>f>=1000?f/1000+'k':f;
+function tickLabels(g,xs,W,y,k){
+  let lim=W-3*k;const out=[];
+  for(let i=xs.length-1;i>=0;i--){const t=xs[i],txt=tl(t.f),w=g.measureText(txt).width;
+    const st=i===xs.length-1?W-3*k-w:t.x+3*k;
+    if(st+w<=lim){out.push([txt,st]);lim=st-5*k}}
+  out.forEach(o=>g.fillText(o[0],o[1],y));
+}
+function drawGrid(){
+  const W=gc.width,H=gc.height,k=dpr,m=SML*k,pw=W-m;gx.clearRect(0,0,W,H);
+  gx.lineWidth=1;gx.strokeStyle='rgba(255,255,255,.14)';gx.fillStyle='rgba(255,255,255,.7)';gx.font=11*k+'px Barlow,sans-serif';
+  const xs=ticks().map(f=>({f,x:m+px(f,pw)}));
+  xs.forEach(t=>{gx.beginPath();gx.moveTo(t.x,0);gx.lineTo(t.x,H);gx.stroke()});
+  tickLabels(gx,xs,W,H-5*k,k);
+  gx.fillText('Spektrogramm (neu oben)',m+6*k,14*k);
+}
+function mapX(){
+  if(!binHz)return;const m=SML*dpr,pw=sc.width-m;x0=[];x1=[];
+  for(let x=0;x<sc.width;x++){const f0=FMIN*Math.exp(Math.max(0,x-m)/pw*LR),f1=FMIN*Math.exp(Math.max(0,x-m+1)/pw*LR);
+    const a=Math.min(Math.round(f0/binHz),fb.length-1);x0[x]=a;x1[x]=Math.max(a,Math.min(Math.round(f1/binHz),fb.length-1))}
+}
+function build(){
+  bands=[];const r=Math.pow(2,1/N);
+  for(let c=1000*Math.pow(2,Math.ceil(Math.log2(FMIN/1000)*N)/N);c<=FMAX*1.001;c*=r){bands.push({c,lo:c/Math.pow(r,.5),hi:c*Math.pow(r,.5)})}
+  lev=bands.map(()=>-200);pkv=bands.map(()=>-200);snapLev=null;$('snap').classList.remove('on');
+}
+function weights(){
+  wA=new Float32Array(fb.length);wC=new Float32Array(fb.length);
+  for(let i=1;i<fb.length;i++){const f=i*binHz,f2=f*f,a=12194*12194;
+    const RA=a*f2*f2/((f2+20.6*20.6)*Math.sqrt((f2+107.7*107.7)*(f2+737.9*737.9))*(f2+a));
+    const RC=a*f2/((f2+20.6*20.6)*(f2+a));
+    wA[i]=Math.pow(10,(20*Math.log10(RA)+2.0)/10);wC[i]=Math.pow(10,(20*Math.log10(RC)+0.06)/10)}
+}
+async function listDevices(){
+  try{const d=(await navigator.mediaDevices.enumerateDevices()).filter(x=>x.kind==='audioinput'),cur=$('dev').value;
+  $('dev').innerHTML='<option value="">Standard-Eingang</option>'+d.map((x,i)=>`<option value="${x.deviceId}">${x.label||'Eingang '+(i+1)}</option>`).join('');$('dev').value=cur}catch(e){}
+}
+async function start(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$('msg').textContent='Mikrofonzugriff braucht eine sichere Verbindung (HTTPS oder localhost).';return}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:$('dev').value?{exact:$('dev').value}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  }catch(e){$('msg').textContent='Kein Zugriff auf den Audio-Eingang: '+e.message;return}
+  ctx=new (window.AudioContext||window.webkitAudioContext)();ctx.resume&&ctx.resume();
+  an=ctx.createAnalyser();an.fftSize=8192;an.smoothingTimeConstant=.15;an.minDecibels=-140;an.maxDecibels=0;
+  ctx.createMediaStreamSource(stream).connect(an);
+  fb=new Float32Array(an.frequencyBinCount);tb=new Float32Array(an.fftSize);binHz=ctx.sampleRate/an.fftSize;
+  weights();build();mapX();resetSpl();running=true;last=performance.now();
+  $('go').textContent='Messung stoppen';$('go').classList.remove('go');
+  $('msg').textContent='Läuft mit '+Math.round(ctx.sampleRate/1000*10)/10+' kHz. Für Messungen Audio-Interface mit Messmikrofon nutzen; Smartphone-Mikros filtern oft.';
+  listDevices();try{navigator.wakeLock&&navigator.wakeLock.request('screen').then(l=>{wl=l}).catch(()=>{})}catch(e){}requestAnimationFrame(loop);
+}
+function stop(){running=false;try{wl&&wl.release()}catch(e){}stream&&stream.getTracks().forEach(t=>t.stop());ctx&&ctx.close();$('go').textContent='Messung starten';$('go').classList.add('go')}
+function resetSpl(){eSum=0;eT=0;mx=-999;pkm=-999}
+function loop(t){
+  if(!running)return;const dt=Math.min((t-last)/1000,.1);last=t;
+  an.getFloatFrequencyData(fb);an.getFloatTimeDomainData(tb);
+  let ms=0,pk=0;for(let i=tb.length-2048;i<tb.length;i++){const v=tb[i];ms+=v*v;const a=Math.abs(v);if(a>pk)pk=a}ms/=2048;
+  const W=wt==='A'?wA:wt==='C'?wC:null;let s=0,sw=0,loE=0,miE=0,hiE=0;
+  for(let i=1;i<fb.length;i++){
+    const p=Math.pow(10,fb[i]/10);s+=p;if(W)sw+=p*W[i];
+    const f=i*binHz;if(f<250)loE+=p;else if(f<2000)miE+=p;else hiE+=p;
+  }
+  {const tot=loE+miE+hiE+1e-12;wLo+=(loE/tot-wLo)*.2;wMid+=(miE/tot-wMid)*.2;wHi+=(hiE/tot-wHi)*.2}
+  const d=W&&s>0?sw/s:1,msW=ms*d,tau=tc==='F'?.125:1;
+  sm+=(msW-sm)*(1-Math.exp(-dt/tau));eSum+=msW*dt;eT+=dt;
+  const L=10*Math.log10(sm+1e-12)+cal;mx=Math.max(mx,L);pkm=Math.max(pkm,20*Math.log10(pk+1e-6)+cal);
+  $('spl').textContent=L.toFixed(1);$('leq').textContent=(10*Math.log10(eSum/eT+1e-12)+cal).toFixed(1);
+  $('max').textContent=mx.toFixed(1);$('peak').textContent=pkm.toFixed(1);$('fs').textContent=(10*Math.log10(ms+1e-12)).toFixed(1);
+  $('lbl').textContent='L'+wt+tc;$('cs').textContent='dB SPL'+(calibrated?'':', nicht kalibriert');
+  $('spl').classList.toggle('hit',L>=+$('alarmDb').value);
+  if(pRunning){
+    pEsum+=msW*dt;pEt+=dt;
+    if(pDur>0&&pEt>=pDur){pRunning=false;$('pStart').textContent='Start';$('pStart').classList.remove('on')}
+  }
+  if(pEt>0)$('pLeq').textContent=(10*Math.log10(pEsum/pEt+1e-12)+cal).toFixed(1);
+  {const mm=Math.floor(pEt/60),ss=Math.floor(pEt%60);$('pTime').textContent=String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0')+(pDur>0?' / '+Math.floor(pDur/60)+':00':'')}
+  // RTA-Bänder
+  bands.forEach((b,k)=>{
+    const i0=Math.ceil(b.lo/binHz),i1=Math.floor(b.hi/binHz);let v;
+    if(i1<i0)v=fb[Math.min(Math.round(b.c/binHz),fb.length-1)]+CORR;
+    else{let q=0;for(let i=i0;i<=i1;i++)q+=Math.pow(10,fb[i]/10);v=10*Math.log10(q)+CORR}
+    lev[k]=Math.max(v,lev[k]-30*dt);
+    if(lev[k]>=pkv[k])pkv[k]=lev[k];else if(pkRate>0)pkv[k]=Math.max(lev[k],pkv[k]-pkRate*dt);
+  });
+  if(vis.wave)drawWave();
+  if(vis.rta)drawRta();
+  if(vis.sp&&frame++%2===0)drawSpec();
+  requestAnimationFrame(loop);
+}
+function drawWave(){
+  const W=wc.width,H=wc.height;if(!W||!H)return;
+  wx.clearRect(0,0,W,H);
+  const r=Math.round(255*wLo+240*wMid+60*wHi),g2=Math.round(60*wLo+200*wMid+200*wHi),b=Math.round(60*wLo+50*wMid+120*wHi);
+  wx.strokeStyle='rgb('+r+','+g2+','+b+')';wx.lineWidth=2*dpr;wx.beginPath();
+  const n=tb.length,step=Math.max(1,Math.floor(n/W));
+  for(let x=0;x<W;x++){
+    const v=tb[Math.min(n-1,x*step)],y=H/2-v*H*0.45;
+    if(x===0)wx.moveTo(x,y);else wx.lineTo(x,y);
+  }
+  wx.stroke();
+}
+function drawRta(){
+  const W=rc.width,H=rc.height,m={l:ML*dpr,b:MB*dpr,t:MT*dpr},pw=W-m.l-4*dpr,ph=H-m.b-m.t;
+  const y=v=>m.t+(1-(Math.max(DMIN,Math.min(DMAX,v))-DMIN)/(DMAX-DMIN))*ph;
+  rx.clearRect(0,0,W,H);rx.font=11*dpr+'px Barlow,sans-serif';rx.lineWidth=1;
+  rx.strokeStyle=css('--line');rx.fillStyle=css('--dim');
+  for(let v=DMIN;v<=DMAX;v+=10){const yy=Math.round(y(v))+.5;rx.beginPath();rx.moveTo(m.l,yy);rx.lineTo(W,yy);rx.stroke();rx.fillText(Math.round(v+cal),4*dpr,yy+4*dpr)}
+  const xs=ticks().map(f=>({f,x:m.l+px(f,pw)}));xs.forEach(t=>{rx.beginPath();rx.moveTo(t.x,m.t);rx.lineTo(t.x,m.t+ph);rx.stroke()});tickLabels(rx,xs,W,H-5*dpr,dpr);
+  const g=rx.createLinearGradient(0,m.t+ph,0,m.t);g.addColorStop(0,css('--lo'));g.addColorStop(.6,css('--mid'));g.addColorStop(1,css('--hi'));
+  rx.fillStyle=g;
+  bands.forEach((b,k)=>{const xa=m.l+px(b.lo,pw),xb=m.l+px(b.hi,pw),bw=Math.max(1,xb-xa-(N>6?0:1.5*dpr)),yy=y(lev[k]);rx.fillRect(xa,yy,bw,m.t+ph-yy)});
+  if(hold){rx.fillStyle=css('--pk');bands.forEach((b,k)=>{const xa=m.l+px(b.lo,pw),xb=m.l+px(b.hi,pw);rx.fillRect(xa,y(pkv[k])-dpr,Math.max(1,xb-xa-(N>6?0:1.5*dpr)),2*dpr)})}
+  if(snapLev&&snapLev.length===bands.length){rx.strokeStyle='#ffffff';rx.lineWidth=2*dpr;rx.beginPath();
+    bands.forEach((b,k)=>{const xa=m.l+px(b.lo,pw),xb=m.l+px(b.hi,pw),yy=y(snapLev[k]);rx.moveTo(xa,yy);rx.lineTo(xb,yy)});rx.stroke()}
+}
+function drawSpec(){
+  const W=sc.width,H=sc.height;sx.drawImage(sc,0,0,W,H-1,0,1,W,H-1);
+  const row=sx.createImageData(W,1),o=row.data;
+  for(let x=0;x<W;x++){if(x<SML*dpr){o[x*4]=5;o[x*4+1]=7;o[x*4+2]=15;o[x*4+3]=255;continue}let v=-200;for(let i=x0[x];i<=x1[x];i++)if(fb[i]>v)v=fb[i];
+    const k=Math.max(0,Math.min(255,Math.round((v+CORR-DMIN)/(80)*255)))*4;o[x*4]=lut[k];o[x*4+1]=lut[k+1];o[x*4+2]=lut[k+2];o[x*4+3]=255}
+  sx.putImageData(row,0,0);
+}
+function grp(id,fn){$(id).addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;[...$(id).children].forEach(c=>c.classList.remove('on'));b.classList.add('on');fn(b.dataset.v)})}
+grp('res',v=>{N=+v;build()});grp('wt',v=>{wt=v;sm=1e-12;resetSpl()});grp('tc',v=>{tc=v});
+$('hold').onclick=e=>{hold=!hold;e.target.classList.toggle('on',hold)};
+$('go').onclick=()=>running?stop():start();
+$('dev').onchange=()=>{if(running){stop();setTimeout(start,150)}};
+$('rst').onclick=resetSpl;
+$('cal').onclick=()=>{if(!running){$('msg').textContent='Zum Kalibrieren zuerst die Messung starten.';return}
+  cal=94-10*Math.log10(sm+1e-12)+cal-cal;calibrated=true;sm=1e-12;resetSpl();try{localStorage.setItem('cal',cal)}catch(e){}
+  $('msg').textContent='Kalibriert: 94 dB entspricht dem aktuellen Eingangspegel.'};
+
+// Snapshot
+$('pkReset').onclick=()=>{if(bands.length)pkv=bands.map(()=>-200)};
+$('snap').onclick=()=>{
+  if(snapLev){snapLev=null;$('snap').classList.remove('on');return}
+  if(!bands.length){$('msg').textContent='Zuerst Messung starten, dann Snapshot aufnehmen.';return}
+  snapLev=lev.slice();$('snap').classList.add('on');
+};
+
+// Rosa Rauschen (Pink Noise) — eigener, unabhängiger Ausgabe-Kontext
+function beep(){
+  try{const a=new (window.AudioContext||window.webkitAudioContext)();
+    const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;g.gain.value=.15;
+    o.connect(g).connect(a.destination);o.start();o.stop(a.currentTime+.18);setTimeout(()=>{try{a.close()}catch(e){}},300);
+  }catch(e){}
+}
+function toggleNoise(){
+  if(noiseOn){
+    try{nNode&&nNode.disconnect();nGain&&nGain.disconnect();nCtx&&nCtx.close()}catch(e){}
+    noiseOn=false;$('noise').classList.remove('on');$('noise').textContent='Rosa Rauschen';return;
+  }
+  try{
+    nCtx=new (window.AudioContext||window.webkitAudioContext)();
+    nGain=nCtx.createGain();nGain.gain.value=.3;
+    nNode=nCtx.createScriptProcessor(4096,1,1);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0,b6=0;
+    nNode.onaudioprocess=e=>{
+      const out=e.outputBuffer.getChannelData(0);
+      for(let i=0;i<out.length;i++){
+        const white=Math.random()*2-1;
+        b0=.99886*b0+white*.0555179;b1=.99332*b1+white*.0750759;b2=.96900*b2+white*.1538520;
+        b3=.86650*b3+white*.3104856;b4=.55000*b4+white*.5329522;b5=-.7616*b5-white*.0168980;
+        let pink=b0+b1+b2+b3+b4+b5+b6+white*.5362;b6=white*.115926;out[i]=pink*.11;
+      }
+    };
+    nNode.connect(nGain).connect(nCtx.destination);
+    noiseOn=true;$('noise').classList.add('on');$('noise').textContent='Rauschen stoppen';
+  }catch(e){$('msg').textContent='Rosa Rauschen konnte nicht gestartet werden: '+e.message}
+}
+$('noise').onclick=toggleNoise;
+
+// Leq über Zeitraum
+$('pDur').onchange=()=>{pDur=+$('pDur').value};
+$('pStart').onclick=e=>{pRunning=!pRunning;e.target.textContent=pRunning?'Pause':'Start';e.target.classList.toggle('on',pRunning)};
+$('pReset').onclick=()=>{pEsum=0;pEt=0;pRunning=false;$('pStart').textContent='Start';$('pStart').classList.remove('on');$('pLeq').textContent='--';$('pTime').textContent='00:00'};
+
+// Export (CSV der Messwerte + PNG des RTA)
+$('exp').onclick=()=>{
+  if(!bands.length){$('msg').textContent='Zuerst Messung starten, dann exportieren.';return}
+  const now=new Date(),ts=now.toISOString().slice(0,19).replace(/[:T]/g,'-');
+  let csv='Messung RTA Analyzer\n';
+  csv+='Zeitstempel;'+now.toLocaleString('de-DE')+'\n';
+  csv+='LAF;'+$('spl').textContent+'\n';
+  csv+='Leq;'+$('leq').textContent+'\n';
+  csv+='Max;'+$('max').textContent+'\n';
+  csv+='Peak;'+$('peak').textContent+'\n';
+  csv+='Leq Zeitraum;'+$('pLeq').textContent+' ('+$('pTime').textContent+')\n\n';
+  csv+='Frequenz (Hz);Pegel (dB)\n';
+  bands.forEach((b,k)=>{csv+=Math.round(b.c)+';'+lev[k].toFixed(1)+'\n'});
+  const blob=new Blob([csv],{type:'text/csv'}),a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='rta-messung-'+ts+'.csv';a.click();
+  rc.toBlob(b=>{if(!b)return;const a2=document.createElement('a');a2.href=URL.createObjectURL(b);a2.download='rta-diagramm-'+ts+'.png';a2.click()});
+};
+let vis={spl:true,rta:true,sp:true,wave:true};
+try{Object.assign(vis,JSON.parse(localStorage.getItem('view')||'{}'))}catch(e){}
+const secs={spl:'secSpl',rta:'secRta',sp:'secSp',wave:'secWave'};
+function applyMainGrid(){
+  const plots=[];if(vis.rta)plots.push('secRta');if(vis.sp)plots.push('secSp');if(vis.wave)plots.push('secWave');
+  const m=$('main'),n=(vis.spl?1:0)+plots.length;
+  if(!n){m.style.display='none';return}
+  m.style.display='grid';
+  const wide=innerWidth>=760;
+  if(vis.spl&&wide){
+    m.style.gridTemplateColumns='230px 1fr';
+    const areas=[],rows=[];
+    if(plots.length){areas.push('"spl p0"');rows.push('1fr');for(let i=1;i<plots.length;i++){areas.push('"p'+i+' p'+i+'"');rows.push('1fr')}}
+    else{areas.push('"spl spl"');rows.push('1fr')}
+    m.style.gridTemplateRows=rows.join(' ');m.style.gridTemplateAreas=areas.join(' ');
+    $('secSpl').style.gridArea='spl';plots.forEach((id,i)=>{$(id).style.gridArea='p'+i});
+  }else{
+    const items=[];if(vis.spl)items.push('secSpl');items.push(...plots);
+    m.style.gridTemplateColumns='1fr';
+    m.style.gridTemplateRows=items.map(id=>id==='secSpl'?'auto':'1fr').join(' ');
+    m.style.gridTemplateAreas=items.map((id,i)=>'"p'+i+'"').join(' ');
+    items.forEach((id,i)=>{$(id).style.gridArea='p'+i});
+  }
+}
+function view(){
+  for(const k in secs){$(secs[k]).classList.toggle('hide',!vis[k]);document.querySelector('#views [data-v="'+k+'"]').classList.toggle('on',vis[k])}
+  applyMainGrid();
+  try{localStorage.setItem('view',JSON.stringify(vis))}catch(e){}
+}
+$('views').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.v;vis[k]=!vis[k];view();layout()});
+document.addEventListener('visibilitychange',()=>{if(running&&ctx&&ctx.state!=='running')ctx.resume()});
+const relayout=()=>{insets();layout()};
+function settle(ms){const start=performance.now();(function step(){relayout();if(performance.now()-start<ms)requestAnimationFrame(step)})()}
+const standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+const settleMs=standalone?1400:700;
+addEventListener('resize',relayout);
+addEventListener('orientationchange',()=>settle(settleMs));
+if(window.visualViewport)visualViewport.addEventListener('resize',()=>settle(standalone?1000:500));
+addEventListener('pageshow',()=>settle(settleMs));
+(function(){
+  const d=document.querySelector('details.tools'),sum=d.querySelector('summary'),inner=d.querySelector('.inner');
+  function place(){
+    const r=sum.getBoundingClientRect(),iw=Math.min(inner.offsetWidth||260,innerWidth-16);
+    let left=r.right-iw;left=Math.max(8,Math.min(left,innerWidth-iw-8));
+    let top=r.bottom+6;top=Math.min(top,innerHeight-40);
+    inner.style.left=left+'px';inner.style.top=top+'px';
+  }
+  d.addEventListener('toggle',()=>{if(d.open)place()});
+  addEventListener('resize',()=>{if(d.open)place()});
+  addEventListener('scroll',()=>{if(d.open)place()},true);
+  document.addEventListener('click',e=>{if(d.open&&!d.contains(e.target))d.removeAttribute('open')});
+})();
+view();insets();layout();
+try{const ro=new ResizeObserver(()=>layout());ro.observe(rc.parentElement);ro.observe(sc.parentElement);ro.observe(wc.parentElement)}catch(e){}
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+</script>
+</body>
+</html>
