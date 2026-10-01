@@ -111,6 +111,7 @@ body{padding-left:var(--pl);padding-right:var(--pr);display:flex;flex-direction:
 <script>
 const $=id=>document.getElementById(id);
 const rc=$('rta'),rx=rc.getContext('2d'),sc=$('sp'),sx=sc.getContext('2d',{willReadFrequently:true}),gc=$('gr'),gx=gc.getContext('2d'),wc=$('wf'),wx=wc.getContext('2d');
+const wBuf=document.createElement('canvas'),wbx=wBuf.getContext('2d');
 let ctx,an,stream,fb,tb,binHz,running=false,last=0,frame=0,wl;
 let snapLev=null,nCtx,nNode,nGain,noiseOn=false;
 let pEsum=0,pEt=0,pRunning=false,pDur=900;
@@ -253,12 +254,19 @@ function loop(t){
 function drawWave(dt){
   const W=wc.width,H=wc.height;if(!W||!H)return;
   const shift=Math.max(1,Math.round((dt||.016)*90*dpr));
-  if(shift<W){wx.drawImage(wc,shift,0,W-shift,H,0,0,W-shift,H);wx.clearRect(W-shift,0,shift,H)}
-  else wx.clearRect(0,0,W,H);
-  const amp=Math.min(1,Math.sqrt(curMs)*2.4),half=Math.max(1.2*dpr,amp*H*0.48);
-  const r=Math.round(255*wLo+240*wMid+60*wHi),g2=Math.round(60*wLo+200*wMid+200*wHi),b=Math.round(60*wLo+50*wMid+120*wHi);
-  wx.fillStyle='rgb('+r+','+g2+','+b+')';
-  wx.fillRect(Math.max(0,W-shift),H/2-half,shift,half*2);
+  if(shift<W){
+    if(wBuf.width!==W||wBuf.height!==H){wBuf.width=W;wBuf.height=H}
+    wbx.clearRect(0,0,W,H);wbx.drawImage(wc,0,0);
+    wx.clearRect(0,0,W,H);
+    wx.drawImage(wBuf,shift,0,W-shift,H,0,0,W-shift,H);
+  } else wx.clearRect(0,0,W,H);
+  const total=Math.min(1,Math.sqrt(curMs)*2.4),half=total*H*0.48;
+  const cx=Math.max(0,W-shift),cy=H/2,bw=shift,loH=half*wLo,miH=half*wMid,hiH=half*wHi;
+  let inner=0;
+  const seg=(h,color)=>{if(h<=0)return;wx.fillStyle=color;wx.fillRect(cx,cy-inner-h,bw,h);wx.fillRect(cx,cy+inner,bw,h)};
+  seg(loH,'rgb(235,70,70)');inner+=loH;
+  seg(miH,'rgb(240,200,60)');inner+=miH;
+  seg(hiH,'rgb(70,200,120)');
 }
 function drawRta(){
   const W=rc.width,H=rc.height,m={l:ML*dpr,b:MB*dpr,t:MT*dpr},pw=W-m.l-4*dpr,ph=H-m.b-m.t;
